@@ -1,0 +1,738 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>투어정산 (Tour Expense Settlement)</title>
+  <style>
+    body {
+      font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif;
+      background-color: #f4f5f7;
+      margin: 0;
+      display: flex;
+      justify-content: center;
+    }
+    .app-container {
+      width: 100%;
+      max-width: 400px;
+      background-color: #ffffff;
+      min-height: 100vh;
+      box-shadow: 0 0 15px rgba(0,0,0,0.1);
+      padding: 20px;
+      box-sizing: border-box;
+      padding-bottom: 50px;
+    }
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 5px;
+    }
+    h1 { font-size: 18px; color: #333; margin: 0; }
+    
+    .lang-select {
+      padding: 5px;
+      border-radius: 5px;
+      border: 1px solid #ddd;
+      font-size: 13px;
+      background-color: #f9f9f9;
+      cursor: pointer;
+    }
+
+    .tab-menu { display: flex; margin-top: 15px; margin-bottom: 15px; border-bottom: 2px solid #eee; }
+    .tab-btn { flex: 1; padding: 10px; text-align: center; cursor: pointer; font-weight: bold; color: #888; background: none; border: none; }
+    .tab-btn.active { color: #007bff; border-bottom: 2px solid #007bff; }
+
+    .summary-box {
+      background: linear-gradient(135deg, #007bff, #0056b3);
+      color: white;
+      padding: 15px;
+      border-radius: 10px;
+      margin-bottom: 15px;
+    }
+    .summary-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    .summary-row.total {
+      border-top: 1px solid rgba(255,255,255,0.3);
+      padding-top: 8px;
+      margin-top: 8px;
+      font-size: 16px;
+      font-weight: bold;
+    }
+    
+    .card { background: #f9f9f9; padding: 15px; border-radius: 10px; margin-bottom: 15px; border: 1px solid #eee; }
+    .card h3 { margin-top: 0; font-size: 15px; color: #444; margin-bottom: 10px; }
+
+    .input-group { display: flex; flex-direction: column; gap: 8px; }
+    input, select, button {
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #ddd;
+      font-size: 15px;
+      box-sizing: border-box;
+    }
+    button { background-color: #333; color: white; border: none; font-weight: bold; cursor: pointer; }
+    button:active { background-color: #555; }
+    
+    .receipt-btn-container {
+      background: linear-gradient(135deg, #6f42c1, #007bff);
+      color: white;
+      padding: 12px;
+      border-radius: 8px;
+      text-align: center;
+      cursor: pointer;
+      font-weight: bold;
+      margin-bottom: 12px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+    }
+    .receipt-btn-container input { display: none; }
+
+    .excel-btn {
+      background-color: #28a745;
+      color: white;
+      padding: 10px;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: bold;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+      cursor: pointer;
+      margin-bottom: 15px;
+      border: none;
+      width: 100%;
+    }
+    .excel-btn:active { background-color: #218838; }
+
+    .list-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+    
+    .filter-box {
+      background: #f1f3f5;
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 15px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .date-range-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 5px;
+    }
+    .date-range-row input {
+      flex: 1;
+      padding: 6px;
+      font-size: 13px;
+    }
+
+    ul { list-style: none; padding: 0; margin: 0; }
+    li {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid #eee;
+    }
+    .item-info { display: flex; flex-direction: column; }
+    .item-date-category { font-size: 11px; color: #888; }
+    .item-memo { font-size: 15px; color: #333; }
+    .item-amount { font-size: 15px; font-weight: bold; }
+    .item-amount.expense { color: #d9534f; }
+    .item-amount.income { color: #28a745; }
+    
+    .delete-btn { background: #ff4d4d; color: white; padding: 4px 8px; font-size: 11px; border-radius: 4px; margin-left: 8px; }
+
+    .hidden { display: none; }
+    .loading { text-align: center; font-size: 13px; color: #6f42c1; margin-top: 5px; display: none; }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+    <div class="header-top">
+      <h1 id="appTitle">✈️ 투어정산</h1>
+      <select id="langSelect" class="lang-select" onchange="changeLanguage()">
+        <option value="ko">🇰🇷 한국어</option>
+        <option value="en">🇺🇸 English</option>
+        <option value="vi">🇻🇳 Tiếng Việt</option>
+      </select>
+    </div>
+    
+    <div class="tab-menu">
+      <button class="tab-btn active" id="tabHomeBtn" onclick="switchTab('home')">지출/운영비 관리</button>
+      <button class="tab-btn" id="tabSettingsBtn" onclick="switchTab('settings')">카테고리 관리</button>
+    </div>
+
+    <!-- [탭 1] 지출 및 운영비 관리 메인 화면 -->
+    <div id="homeTab">
+      <div class="filter-box">
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <span id="filterLabel" style="font-size: 13px; font-weight: bold; color: #444;">📅 조회 기간 설정</span>
+          <button onclick="setThisMonth()" style="padding: 4px 8px; font-size: 11px; background: #6c757d;">이번 달 전체</button>
+        </div>
+        <div class="date-range-row">
+          <input type="date" id="startDate" onchange="updateUI()">
+          <span>~</span>
+          <input type="date" id="endDate" onchange="updateUI()">
+        </div>
+      </div>
+
+      <div class="summary-box">
+        <div class="summary-row">
+          <span id="labelTotalIncome">총 받은 운영비:</span>
+          <span><strong id="totalIncomeAmount">0</strong> <span class="currencyUnit">VND</span></span>
+        </div>
+        <div class="summary-row">
+          <span id="labelTotalExpense">총 지출 금액:</span>
+          <span><strong id="totalExpenseAmount">0</strong> <span class="currencyUnit">VND</span></span>
+        </div>
+        <div class="summary-row total">
+          <span id="labelBalance">최종 잔액:</span>
+          <span><strong id="balanceAmount">0</strong> <span class="currencyUnit">VND</span></span>
+        </div>
+      </div>
+
+      <button class="excel-btn" onclick="exportToExcel()">
+        <span id="excelBtnText">📊 엑셀 파일로 다운로드</span>
+      </button>
+
+      <div class="card">
+        <h3 id="recordTitle">내역 기록하기</h3>
+        
+        <label class="receipt-btn-container" id="receiptContainer">
+          <span id="receiptBtnText">📷 영수증 촬영/업로드 자동인식</span>
+          <input type="file" id="receiptInput" accept="image/*" capture="environment" onchange="processReceipt(event)">
+        </label>
+        <div id="loadingText" class="loading">영수증을 분석하고 있습니다... 잠시만 기다려주세요!</div>
+
+        <div class="input-group" style="margin-top: 10px;">
+          <input type="date" id="date">
+          
+          <select id="entryType" onchange="toggleCategorySelect()">
+            <option value="expense" id="optExpense">💸 지출</option>
+            <option value="income" id="optIncome">💰 받은 운영비</option>
+          </select>
+
+          <select id="category">
+            <!-- 카테고리 동적 로드 -->
+          </select>
+
+          <!-- 금액 입력란 (천단위 자동 쉼표 적용) -->
+          <input type="text" id="amount" placeholder="금액 입력" oninput="formatAmountInput(this)">
+          
+          <input type="text" id="memo" placeholder="내용 (예: 투어 팁, 1일차 운영비 입금)">
+          <button id="addBtn" onclick="addEntry()">내역 추가</button>
+        </div>
+      </div>
+
+      <div>
+        <div class="list-header">
+          <strong id="listTitle" style="font-size: 15px;">투어 정산 내역</strong>
+        </div>
+        <ul id="expenseList">
+          <!-- 목록 -->
+        </ul>
+      </div>
+    </div>
+
+    <!-- [탭 2] 카테고리 관리 화면 -->
+    <div id="settingsTab" class="hidden">
+      <div class="card">
+        <h3 id="addCatTitle">새 카테고리 추가</h3>
+        <div class="input-group">
+          <input type="text" id="newCategoryName" placeholder="예: 가이드비, 입장료 등">
+          <button id="addCatBtn" onclick="addCategory()" style="background-color: #28a745;">카테고리 추가</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 id="catListTitle">등록된 카테고리 목록</h3>
+        <ul id="categoryList">
+          <!-- 카테고리 목록 -->
+        </ul>
+      </div>
+    </div>
+
+  </div>
+
+  <script>
+    const translations = {
+      ko: {
+        appTitle: "✈️ 투어정산",
+        tabHome: "지출/운영비 관리",
+        tabSettings: "카테고리 관리",
+        filterLabel: "📅 조회 기간 설정",
+        labelTotalIncome: "총 받은 운영비:",
+        labelTotalExpense: "총 지출 금액:",
+        labelBalance: "최종 잔액:",
+        currency: "VND",
+        excelBtn: "📊 엑셀 파일로 다운로드",
+        recordTitle: "내역 기록하기",
+        receiptText: "📷 영수증 촬영/업로드 자동인식",
+        loadingText: "영수증을 분석하고 있습니다... 잠시만 기다려주세요!",
+        optExpense: "💸 지출",
+        optIncome: "💰 받은 운영비",
+        amountPlaceholder: "금액 입력",
+        memoPlaceholder: "내용 (예: 투어 팁, 운영비 입금)",
+        addBtn: "내역 추가",
+        listTitle: "투어 정산 내역",
+        emptyList: "선택한 기간에 내역이 없습니다.",
+        deleteBtn: "삭제",
+        addCatTitle: "새 카테고리 추가",
+        addCatPlaceholder: "예: 가이드비, 입장료 등",
+        addCatBtn: "카테고리 추가",
+        catListTitle: "등록된 카테고리 목록",
+        alertEmpty: "날짜, 금액, 내용을 모두 입력해주세요!",
+        alertCatEmpty: "카테고리 이름을 입력해주세요!",
+        alertCatExist: "이미 존재하는 카테고리입니다.",
+        alertCatSuccess: "카테고리가 추가되었습니다.",
+        confirmDeleteCat: " 카테고리를 삭제하시겠습니까?",
+        receiptAlert: "✨ 영수증 분석 완료!\n금액과 내용이 자동으로 입력되었습니다.",
+        alertNoData: "다운로드할 정산 내역이 없습니다!"
+      },
+      en: {
+        appTitle: "✈️ Tour Expense",
+        tabHome: "Expenses/Funds",
+        tabSettings: "Categories",
+        filterLabel: "📅 Date Range",
+        labelTotalIncome: "Total Funds Received:",
+        labelTotalExpense: "Total Expenses:",
+        labelBalance: "Balance:",
+        currency: "VND",
+        excelBtn: "📊 Export to Excel",
+        recordTitle: "Add Record",
+        receiptText: "📷 Scan Receipt / Upload",
+        loadingText: "Analyzing receipt... Please wait!",
+        optExpense: "💸 Expense",
+        optIncome: "💰 Fund Received",
+        amountPlaceholder: "Enter amount",
+        memoPlaceholder: "Description (e.g., Lunch, Fund)",
+        addBtn: "Add Record",
+        listTitle: "Settlement History",
+        emptyList: "No records found for this period.",
+        deleteBtn: "Delete",
+        addCatTitle: "Add New Category",
+        addCatPlaceholder: "e.g., Guide fee, Ticket",
+        addCatBtn: "Add Category",
+        catListTitle: "Category List",
+        alertEmpty: "Please enter date, amount, and description!",
+        alertCatEmpty: "Please enter a category name!",
+        alertCatExist: "Category already exists.",
+        alertCatSuccess: "Category added successfully.",
+        confirmDeleteCat: " category?",
+        receiptAlert: "✨ Receipt analysis complete!\nAmount and description have been filled automatically.",
+        alertNoData: "No data to export!"
+      },
+      vi: {
+        appTitle: "✈️ Quản Lý Tour",
+        tabHome: "Chi tiêu / Quỹ",
+        tabSettings: "Danh mục",
+        filterLabel: "📅 Khoảng thời gian xem",
+        labelTotalIncome: "Tổng quỹ nhận được:",
+        labelTotalExpense: "Tổng chi tiêu:",
+        labelBalance: "Số dư còn lại:",
+        currency: "VND",
+        excelBtn: "📊 Xuất ra tệp Excel",
+        recordTitle: "Thêm khoản mục",
+        receiptText: "📷 Quét hóa đơn / Tải lên",
+        loadingText: "Đang phân tích hóa đơn... Vui lòng đợi!",
+        optExpense: "💸 Chi tiêu",
+        optIncome: "💰 Nhận quỹ tour",
+        amountPlaceholder: "Nhập số tiền",
+        memoPlaceholder: "Nội dung (VD: Tiền quỹ nhận)",
+        addBtn: "Thêm",
+        listTitle: "Lịch sử quyết toán",
+        emptyList: "Không có dữ liệu trong khoảng thời gian này.",
+        deleteBtn: "Xóa",
+        addCatTitle: "Thêm danh mục mới",
+        addCatPlaceholder: "VD: Phí hướng dẫn, Vé vào cửa...",
+        addCatBtn: "Thêm danh mục",
+        catListTitle: "Danh sách danh mục",
+        alertEmpty: "Vui lòng nhập đầy đủ ngày, số tiền và nội dung!",
+        alertCatEmpty: "Vui lòng nhập tên danh mục!",
+        alertCatExist: "Danh mục này đã tồn tại.",
+        alertCatSuccess: "Đã thêm danh mục thành công.",
+        confirmDeleteCat: " Bạn có chắc muốn xóa danh mục này?",
+        receiptAlert: "✨ Đã phân tích xong hóa đơn!\nSố tiền và nội dung đã được điền tự động.",
+        alertNoData: "Không có dữ liệu để xuất!"
+      }
+    };
+
+    let currentLang = localStorage.getItem('myLang') || 'ko';
+    document.getElementById('langSelect').value = currentLang;
+
+    let entries = JSON.parse(localStorage.getItem('myExpenses')) || [];
+    entries = entries.map(item => ({ ...item, type: item.type || 'expense' }));
+
+    let categories = JSON.parse(localStorage.getItem('myCategories')) || ['식비', '교통비', '쇼핑', '문화/여가', '기타'];
+
+    document.getElementById('date').valueAsDate = new Date();
+    
+    const today = new Date();
+    const year = today.getFullYear();
+    const month = String(today.getMonth() + 1).padStart(2, '0');
+    const lastDay = new Date(year, today.getMonth() + 1, 0).getDate();
+
+    document.getElementById('startDate').value = `${year}-${month}-01`;
+    document.getElementById('endDate').value = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+
+    // 금액 입력란 자동 쉼표(천단위) 포맷 함수
+    function formatAmountInput(input) {
+      let value = input.value.replace(/[^0-9]/g, ''); // 숫자 외 문자 제거
+      if (value) {
+        value = Number(value).toLocaleString(); // 천단위 쉼표 추가
+      }
+      input.value = value;
+    }
+
+    function setThisMonth() {
+      document.getElementById('startDate').value = `${year}-${month}-01`;
+      document.getElementById('endDate').value = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+      updateUI();
+    }
+
+    function changeLanguage() {
+      currentLang = document.getElementById('langSelect').value;
+      localStorage.setItem('myLang', currentLang);
+      applyTranslations();
+      updateUI();
+    }
+
+    function applyTranslations() {
+      const t = translations[currentLang];
+      document.getElementById('appTitle').innerText = t.appTitle;
+      document.getElementById('tabHomeBtn').innerText = t.tabHome;
+      document.getElementById('tabSettingsBtn').innerText = t.tabSettings;
+      document.getElementById('filterLabel').innerText = t.filterLabel;
+      document.getElementById('labelTotalIncome').innerText = t.labelTotalIncome;
+      document.getElementById('labelTotalExpense').innerText = t.labelTotalExpense;
+      document.getElementById('labelBalance').innerText = t.labelBalance;
+      
+      document.querySelectorAll('.currencyUnit').forEach(el => el.innerText = t.currency);
+      
+      document.getElementById('excelBtnText').innerText = t.excelBtn;
+      document.getElementById('recordTitle').innerText = t.recordTitle;
+      document.getElementById('receiptBtnText').innerText = t.receiptText;
+      document.getElementById('loadingText').innerText = t.loadingText;
+      document.getElementById('optExpense').innerText = t.optExpense;
+      document.getElementById('optIncome').innerText = t.optIncome;
+      document.getElementById('amount').placeholder = t.amountPlaceholder;
+      document.getElementById('memo').placeholder = t.memoPlaceholder;
+      document.getElementById('addBtn').innerText = t.addBtn;
+      document.getElementById('listTitle').innerText = t.listTitle;
+      document.getElementById('addCatTitle').innerText = t.addCatTitle;
+      document.getElementById('newCategoryName').placeholder = t.addCatPlaceholder;
+      document.getElementById('addCatBtn').innerText = t.addCatBtn;
+      document.getElementById('catListTitle').innerText = t.catListTitle;
+    }
+
+    function switchTab(tabName) {
+      const homeTab = document.getElementById('homeTab');
+      const settingsTab = document.getElementById('settingsTab');
+      const buttons = document.querySelectorAll('.tab-btn');
+
+      buttons.forEach(btn => btn.classList.remove('active'));
+
+      if (tabName === 'home') {
+        homeTab.classList.remove('hidden');
+        settingsTab.classList.add('hidden');
+        document.getElementById('tabHomeBtn').classList.add('active');
+      } else {
+        homeTab.classList.add('hidden');
+        settingsTab.classList.remove('hidden');
+        document.getElementById('tabSettingsBtn').classList.add('active');
+        updateCategoryManagementUI();
+      }
+    }
+
+    function toggleCategorySelect() {
+      const type = document.getElementById('entryType').value;
+      const categorySelect = document.getElementById('category');
+      const receiptContainer = document.getElementById('receiptContainer');
+
+      if (type === 'income') {
+        categorySelect.style.display = 'none';
+        receiptContainer.style.display = 'none';
+      } else {
+        categorySelect.style.display = 'block';
+        receiptContainer.style.display = 'flex';
+      }
+    }
+
+    function updateCategorySelect() {
+      const select = document.getElementById('category');
+      select.innerHTML = '';
+      categories.forEach(cat => {
+        select.innerHTML += `<option value="${cat}">${cat}</option>`;
+      });
+    }
+
+    function updateCategoryManagementUI() {
+      const t = translations[currentLang];
+      const list = document.getElementById('categoryList');
+      list.innerHTML = '';
+      categories.forEach((cat, index) => {
+        list.innerHTML += `
+          <li>
+            <span>📂 ${cat}</span>
+            ${categories.length > 1 ? `<button class="delete-btn" onclick="deleteCategory(${index})">${t.deleteBtn}</button>` : ''}
+          </li>
+        `;
+      });
+    }
+
+    function addCategory() {
+      const t = translations[currentLang];
+      const name = document.getElementById('newCategoryName').value.trim();
+      if (!name) {
+        alert(t.alertCatEmpty);
+        return;
+      }
+      if (categories.includes(name)) {
+        alert(t.alertCatExist);
+        return;
+      }
+      categories.push(name);
+      localStorage.setItem('myCategories', JSON.stringify(categories));
+      document.getElementById('newCategoryName').value = '';
+      updateCategorySelect();
+      updateCategoryManagementUI();
+      alert(t.alertCatSuccess);
+    }
+
+    function deleteCategory(index) {
+      const t = translations[currentLang];
+      if (confirm(`'${categories[index]}'${t.confirmDeleteCat}`)) {
+        categories.splice(index, 1);
+        localStorage.setItem('myCategories', JSON.stringify(categories));
+        updateCategorySelect();
+        updateCategoryManagementUI();
+      }
+    }
+
+    function processReceipt(event) {
+      const t = translations[currentLang];
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const loadingText = document.getElementById('loadingText');
+      loadingText.style.display = 'block';
+
+      setTimeout(() => {
+        loadingText.style.display = 'none';
+        const mockExtractedAmount = Math.floor(Math.random() * 500000) + 50000;
+        const mockExtractedMemo = currentLang === 'ko' ? "영수증 자동인식 매장" : (currentLang === 'en' ? "Scanned Store" : "Cửa hàng quét hóa đơn");
+
+        document.getElementById('entryType').value = 'expense';
+        toggleCategorySelect();
+        
+        // 영수증 자동인식 금액에도 천단위 쉼표 포맷 적용
+        document.getElementById('amount').value = Number(mockExtractedAmount).toLocaleString();
+        document.getElementById('memo').value = mockExtractedMemo;
+
+        alert(t.receiptAlert);
+        event.target.value = '';
+      }, 1500);
+    }
+
+    function getFilteredEntries() {
+      const startDate = document.getElementById('startDate').value;
+      const endDate = document.getElementById('endDate').value;
+      return entries
+        .map((item, originalIndex) => ({ ...item, originalIndex }))
+        .filter(item => {
+          if (!startDate || !endDate) return true;
+          return item.date >= startDate && item.date <= endDate;
+        });
+    }
+
+    function updateUI() {
+      const t = translations[currentLang];
+      updateCategorySelect();
+      
+      const list = document.getElementById('expenseList');
+      list.innerHTML = '';
+      
+      let totalIncome = 0;
+      let totalExpense = 0;
+
+      const filteredEntries = getFilteredEntries();
+      filteredEntries.sort((a, b) => new Date(b.date) - new Date(a.date));
+
+      if (filteredEntries.length === 0) {
+        list.innerHTML = `<li style="justify-content: center; color: #888; padding: 20px;">${t.emptyList}</li>`;
+      } else {
+        filteredEntries.forEach(item => {
+          const amount = parseInt(item.amount);
+          const isIncome = item.type === 'income';
+
+          if (isIncome) {
+            totalIncome += amount;
+          } else {
+            totalExpense += amount;
+          }
+
+          const badgeText = isIncome ? (currentLang === 'ko' ? '운영비' : (currentLang === 'en' ? 'Fund' : 'Quỹ')) : item.category;
+          const sign = isIncome ? '+' : '-';
+          const amountClass = isIncome ? 'income' : 'expense';
+
+          list.innerHTML += `
+            <li>
+              <div class="item-info">
+                <span class="item-date-category">${item.date} | ${badgeText}</span>
+                <span class="item-memo">${item.memo}</span>
+              </div>
+              <div>
+                <span class="item-amount ${amountClass}">${sign}${amount.toLocaleString()} ${t.currency}</span>
+                <button class="delete-btn" onclick="deleteEntry(${item.originalIndex})">${t.deleteBtn}</button>
+              </div>
+            </li>
+          `;
+        });
+      }
+
+      const balance = totalIncome - totalExpense;
+
+      document.getElementById('totalIncomeAmount').innerText = totalIncome.toLocaleString();
+      document.getElementById('totalExpenseAmount').innerText = totalExpense.toLocaleString();
+      document.getElementById('balanceAmount').innerText = balance.toLocaleString();
+    }
+
+    function addEntry() {
+      const t = translations[currentLang];
+      const date = document.getElementById('date').value;
+      const type = document.getElementById('entryType').value;
+      const category = type === 'expense' ? document.getElementById('category').value : '운영비';
+      const rawAmount = document.getElementById('amount').value;
+      
+      // 쉼표 제거 후 순수 숫자로 변환 저장
+      const amount = rawAmount.replace(/,/g, '');
+      const memo = document.getElementById('memo').value;
+
+      if (!date || !amount || !memo) {
+        alert(t.alertEmpty);
+        return;
+      }
+
+      entries.push({ date, type, category, amount, memo });
+      localStorage.setItem('myExpenses', JSON.stringify(entries));
+
+      document.getElementById('amount').value = '';
+      document.getElementById('memo').value = '';
+
+      updateUI();
+    }
+
+    function deleteEntry(originalIndex) {
+      entries.splice(originalIndex, 1);
+      localStorage.setItem('myExpenses', JSON.stringify(entries));
+      updateUI();
+    }
+
+    function exportToExcel() {
+      const t = translations[currentLang];
+      const filteredEntries = getFilteredEntries();
+
+      if (filteredEntries.length === 0) {
+        alert(t.alertNoData);
+        return;
+      }
+
+      let html = `
+        <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+        <head>
+          <meta charset="utf-8" />
+          <style>
+            table { border-collapse: collapse; width: 100%; }
+            th, td { border: 1px solid #ddd; padding: 8px; text-align: center; font-family: 'Malgun Gothic', sans-serif; }
+            th { background-color: #007bff; color: white; font-weight: bold; }
+            .number { mso-number-format:"#,##0"; }
+          </style>
+        </head>
+        <body>
+          <table>
+            <thead>
+              <tr>
+                <th>날짜</th>
+                <th>구분</th>
+                <th>카테고리/항목</th>
+                <th>내용</th>
+                <th>금액 (VND)</th>
+              </tr>
+            </thead>
+            <tbody>
+      `;
+
+      let totalIncome = 0;
+      let totalExpense = 0;
+
+      filteredEntries.forEach(item => {
+        const amount = parseInt(item.amount);
+        const isIncome = item.type === 'income';
+        if (isIncome) totalIncome += amount;
+        else totalExpense += amount;
+
+        html += `
+          <tr>
+            <td>${item.date}</td>
+            <td>${isIncome ? '받은 운영비' : '지출'}</td>
+            <td>${isIncome ? '-' : item.category}</td>
+            <td>${item.memo}</td>
+            <td class="number">${isIncome ? amount : -amount}</td>
+          </tr>
+        `;
+      });
+
+      const balance = totalIncome - totalExpense;
+
+      html += `
+            <tr style="font-weight: bold; background-color: #f1f3f5;">
+              <td colspan="4">총 받은 운영비</td>
+              <td class="number">${totalIncome}</td>
+            </tr>
+            <tr style="font-weight: bold; background-color: #f1f3f5;">
+              <td colspan="4">총 지출 금액</td>
+              <td class="number">${totalExpense}</td>
+            </tr>
+            <tr style="font-weight: bold; background-color: #e2e8f0;">
+              <td colspan="4">최종 잔액</td>
+              <td class="number">${balance}</td>
+            </tr>
+            </tbody>
+          </table>
+        </body>
+        </html>
+      `;
+
+      const blob = new Blob([html], { type: 'application/vnd.ms-excel' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      
+      const startDate = document.getElementById('startDate').value;
+      const endDate = document.getElementById('endDate').value;
+      a.download = `Tour_Settlement_${startDate}_to_${endDate}.xls`;
+      
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }
+
+    applyTranslations();
+    updateUI();
+  </script>
+
+</body>
+</html>
